@@ -1,0 +1,124 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'com.google.cloud.tools.jib' version "3.1.4"
+}
+
+group 'com.github.ricmore.aeron-basics'
+version '1.0-SNAPSHOT'
+
+def hamcrestVersion = '2.2'
+def mockitoVersion = '4.2.0'
+def junitVersion = '5.8.2'
+def log4jVersion = '2.11.2'
+def aeronVersion = '1.37.0'
+
+allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'checkstyle'
+
+    dependencies {
+        implementation 'org.apache.logging.log4j:log4j-api:2.13.3'
+        implementation 'org.apache.logging.log4j:log4j-core:2.13.3'
+
+        implementation group: 'io.aeron', name: 'aeron-driver', version: "${aeronVersion}", ext: 'pom'
+        testImplementation "org.hamcrest:hamcrest:${hamcrestVersion}"
+        testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+        testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"
+        testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+    }
+}
+
+project(':media') {
+    apply plugin: 'maven-publish'
+
+    dependencies {
+        implementation group: 'io.aeron', name: 'aeron-archive', version: "${aeronVersion}"
+    }
+
+    task runMediaDriver(type: JavaExec) {
+        group = "MediaDriver"
+        description = "Run MediaDriver"
+        classpath = sourceSets.main.runtimeClasspath
+        main = "com.github.ricmore.aeronbasics.media.MediaDriverStarter"
+    }
+}
+
+project(':plain-aeron') {
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.google.cloud.tools.jib'
+
+    dependencies {
+        implementation group: 'io.aeron', name: 'aeron-driver', version: "${aeronVersion}"
+        testImplementation "org.mockito:mockito-inline:${mockitoVersion}"
+    }
+
+    def jibMainClass = ""
+    def jibImageName = ""
+    def jibPorts = []
+    def jibHost = ""
+
+    task buildSubscriptionContainer2(type: Task, group: 'Jib2', dependsOn: []) {
+        jibMainClass = "com.github.ricmore.aeronbasics.plain.starters.SubscriptionStarter"
+        jibImageName = "subscription"
+        jibPorts = ["20121/udp"]
+        jibHost = "-Daeron.sample.host=aeron-subscription"
+        println '111111'
+    }
+    task buildPublisherContainer2(type: Task, group: 'Jib2', dependsOn: []) {
+        jibMainClass = "com.github.ricmore.aeronbasics.plain.starters.PublisherStarter"
+        jibImageName = "publisher"
+        jibPorts = []
+        jibHost = "-Daeron.sample.host=aeron-subscription"
+        println '222222'
+    }
+
+    tasks.register('buildSubscriptionContainer') {
+        group 'Jib'
+
+        println 'AAAA'
+        jibMainClass = "com.github.ricmore.aeronbasics.plain.starters.SubscriptionStarter"
+        jibImageName = "subscription"
+        jibPorts = ["20121/udp"]
+        jibHost = "-Daeron.sample.host=aeron-subscription"
+    }
+
+    tasks.register('buildPublisherContainer') {
+        group 'Jib'
+
+        println 'BBBB'
+        jibMainClass = "com.github.ricmore.aeronbasics.plain.starters.PublisherStarter"
+        jibImageName = "publisher"
+        jibPorts = []
+        jibHost = "-Daeron.sample.host=aeron-subscription"
+    }
+
+    jibDockerBuild.setDependsOn([])
+    //tasks.findAll {t -> (t.group == 'Jib') } .forEach{t -> t.finalizedBy jibDockerBuild}
+    buildSubscriptionContainer2.finalizedBy jibDockerBuild
+    buildPublisherContainer2.finalizedBy jibDockerBuild
+    //buildPublisherContainer.finalizedBy jibDockerBuild
+
+    jib {
+        from {
+            image = "adoptopenjdk:11-jre"
+        }
+        to {
+            image = "aeron-basics-${jibImageName}"
+        }
+        container {
+            mainClass = jibMainClass
+            jvmFlags = ["-Xms512m", jibHost]
+            ports = jibPorts
+            volumes = ['/data']
+        }
+    }
+
+}

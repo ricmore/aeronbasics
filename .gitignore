@@ -1,0 +1,10 @@
+/data/
+/.gradle/
+/.idea/jarRepositories.xml
+/.idea/libraries-with-intellij-classes.xml
+/.idea/misc.xml
+/.idea/uiDesigner.xml
+/.idea/vcs.xml
+/media/build/
+/plain-aeron/build/
+/.idea/modules/

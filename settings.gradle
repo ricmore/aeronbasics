@@ -1,0 +1,4 @@
+rootProject.name = 'aeron-basics'
+include 'plain-aeron'
+include 'media'
+
